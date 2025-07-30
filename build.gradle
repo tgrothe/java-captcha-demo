@@ -1,0 +1,49 @@
+buildscript {
+}
+
+plugins {
+    id 'application'
+    id 'com.diffplug.spotless' version '7.0.4'
+    id 'com.github.ben-manes.versions' version '0.52.0'
+    id 'com.github.spotbugs' version '6.2.1'
+}
+
+application {
+    mainClass.set(System.getProperty('main_class') ?: 'Main')
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.apache.commons:commons-lang3:3.17.0'
+    implementation 'org.json:json:20250517'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+spotless {
+    java {
+        target 'src/**/*.java'
+        googleJavaFormat()
+    }
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.getMainClass()
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    exclude('META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA')
+}
+
+run {
+    standardInput = System.in
+}

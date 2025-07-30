@@ -1,0 +1,20 @@
+name: 'Dependency review'
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+# The following steps are commented out because the dependency-review-action
+# is only available for private repositories with a GitHub Advanced Security license.
+#      - name: 'Checkout repository'
+#        uses: actions/checkout@v4
+#      - name: 'Dependency Review'
+#        uses: actions/dependency-review-action@v4
+      - run: echo "Empty action, because the dependency-review-action is only available for private repos with a GitHub Advanced Security license."

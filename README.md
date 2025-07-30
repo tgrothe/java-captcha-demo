@@ -1,2 +1,1 @@
-# java-template
-Template repository for Java
+# java-captcha-demo

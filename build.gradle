@@ -17,13 +17,15 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.apache.commons:commons-lang3:3.17.0'
     implementation 'org.json:json:20250517'
+    implementation 'com.hellokaton:blade-core:2.1.2.RELEASE'
+    implementation 'net.logicsquad:nanocaptcha:2.1'
+    implementation 'org.slf4j:slf4j-simple:2.0.17'
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 spotless {

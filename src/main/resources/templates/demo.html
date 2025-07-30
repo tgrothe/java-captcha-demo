@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Demo</title>
+</head>
+
+<body>
+<p><input type="button" value="Request a new captcha"
+          onclick="requestCaptcha();"></p>
+<div id="captchaContainer">
+    <p>Captcha will be displayed here after request.</p>
+</div>
+<p>
+    <label for="captchaInput">Captcha text:</label>
+    <input type="text" id="captchaInput" placeholder="Enter captcha here">
+    <input type="button" value="Submit captcha" onclick="submitCaptcha();">
+</p>
+<script>
+    let hash = null;
+    async function fetchJson(req) {
+      try {
+        let response = await fetch(req);
+        let contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          return response.json();
+        } else {
+          return {
+            "ok": false,
+            "message": "No json received, invalid request."
+          };
+        }
+      } catch (err) {
+        return {
+          "ok": false,
+          "message": error.message || "Unknown error"
+        };
+      }
+    }
+    async function requestCaptcha() {
+      await fetchJson('/captcha/get')
+        .then(json => {
+          if (!json.ok) {
+            throw new Error(json.message || 'Failed to fetch captcha');
+          }
+          let captchaContainer = document.getElementById('captchaContainer');
+          captchaContainer.innerHTML = ''; // Clear previous content
+          let img = document.createElement('img');
+          img.src = 'data:image/png;base64,' + json.image;
+          img.alt = 'Captcha Image';
+          captchaContainer.appendChild(img);
+          hash = json.hash;
+        })
+        .catch(error => {
+          let captchaContainer = document.getElementById('captchaContainer');
+          let errorMessage = document.createElement('p');
+          errorMessage.textContent = 'Error fetching captcha: ' + (error.message || 'Unknown error');
+          captchaContainer.appendChild(errorMessage);
+        });
+    }
+    async function submitCaptcha() {
+      let hashVal = hash || 0;
+      let captchaText = document.getElementById('captchaInput').value || 'empty';
+      await fetchJson('/captcha/check/' + hashVal + '/' + encodeURIComponent(captchaText))
+        .then(json => {
+          if (!json.ok) {
+            throw new Error(json.message || 'Failed to fetch captcha');
+          }
+          let captchaContainer = document.getElementById('captchaContainer');
+          captchaContainer.innerHTML = ''; // Clear previous content
+          let resultMessage = document.createElement('p');
+          resultMessage.textContent = json.message || 'Captcha is correct!';
+          captchaContainer.appendChild(resultMessage);
+          let secretMessage = document.createElement('p');
+          secretMessage.innerHTML = json.secret_message || 'No secret message provided.';
+          captchaContainer.appendChild(secretMessage);
+        })
+        .catch(error => {
+          let captchaContainer = document.getElementById('captchaContainer');
+          let errorMessage = document.createElement('p');
+          errorMessage.textContent = 'Error submitting captcha: ' + (error.message || 'Unknown error');
+          captchaContainer.appendChild(errorMessage);
+        });
+    }
+</script>
+</body>
+
+</html>

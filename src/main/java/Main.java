@@ -84,14 +84,19 @@ public class Main {
     @Override
     public void handle(RouteContext ctx) {
       synchronized (LOCK) {
-        String clientIp = ctx.address();
-        User user = USER_MAP.computeIfAbsent(clientIp, k -> new User());
-        if (user.hasAccessedRecently()) {
-          denyAccess(ctx, null);
-          return;
+        try {
+          String clientIp = ctx.address();
+          User user = USER_MAP.computeIfAbsent(clientIp, k -> new User());
+          if (user.hasAccessedRecently()) {
+            denyAccess(ctx, null);
+            return;
+          }
+          user.updateAccessTime();
+          postHandle(ctx);
+        } catch (Exception e) {
+          LOGGER.error("Error handling request: {}", e.getMessage(), e);
+          denyAccess(ctx, "An error occurred while processing your request.");
         }
-        user.updateAccessTime();
-        postHandle(ctx);
       }
     }
 

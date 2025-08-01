@@ -94,7 +94,7 @@ public class Main {
           user.updateAccessTime();
           postHandle(ctx);
         } catch (Exception e) {
-          LOGGER.error("Error handling request: {}", e.getMessage(), e);
+          LOGGER.warn("Exception handling request: {}", e.getMessage());
           denyAccess(ctx, "An error occurred while processing your request.");
         }
       }

@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -63,7 +64,6 @@ public class MyHttpServer {
               "Request processing completed for client: {} with status code: {}",
               getClientIpAddress(exchange),
               exchange.getResponseCode());
-          exchange.close();
         });
     LOGGER.info("Handler added for path: {}", path);
     return this;
@@ -84,6 +84,14 @@ public class MyHttpServer {
     // The general format of the field is: X-Forwarded-For: client, proxy1, proxy2 ...
     // we only want the client
     return new StringTokenizer(xForwardedForHeader, ",").nextToken().trim();
+  }
+
+  public static String getPathPart(HttpExchange ex, int index) {
+    String[] parts = ex.getRequestURI().getRawPath().split("/");
+    if (index < 0 || index >= parts.length) {
+      return null;
+    }
+    return URLDecoder.decode(parts[index], StandardCharsets.UTF_8);
   }
 
   public static void sendHtml200(HttpExchange exchange, String responseBody) throws IOException {

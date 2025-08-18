@@ -1,4 +1,3 @@
-import com.sun.net.httpserver.HttpExchange;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -6,7 +5,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
@@ -219,8 +217,9 @@ public class Main {
         .addHandler(
             "/captcha/check",
             exchange -> {
-              int hash = Integer.parseInt(Objects.requireNonNull(getPathPart(exchange, 3)));
-              String code = Objects.requireNonNull(getPathPart(exchange, 4));
+              int hash =
+                  Integer.parseInt(Objects.requireNonNull(MyHttpServer.getPathPart(exchange, 3)));
+              String code = Objects.requireNonNull(MyHttpServer.getPathPart(exchange, 4));
               String clientIp = MyHttpServer.getClientIpAddress(exchange);
               LOGGER.info(
                   "Checking captcha with hash: {}, code: {}, client IP: {}", hash, code, clientIp);
@@ -257,25 +256,6 @@ public class Main {
               }
             })
         .start();
-  }
-
-  public static String getClientIpAddress(HttpExchange request) {
-    String xForwardedForHeader = request.getRequestHeaders().getFirst("X-Forwarded-For");
-    if (xForwardedForHeader == null) {
-      return request.getRemoteAddress().getAddress().getHostAddress();
-    }
-    // As of https://en.wikipedia.org/wiki/X-Forwarded-For
-    // The general format of the field is: X-Forwarded-For: client, proxy1, proxy2 ...
-    // we only want the client
-    return new StringTokenizer(xForwardedForHeader, ",").nextToken().trim();
-  }
-
-  private static String getPathPart(HttpExchange ex, int index) {
-    String[] parts = ex.getRequestURI().getRawPath().split("/");
-    if (index < 0 || index >= parts.length) {
-      return null;
-    }
-    return URLDecoder.decode(parts[index], StandardCharsets.UTF_8);
   }
 
   private static void clearExpiredCaptchas() {

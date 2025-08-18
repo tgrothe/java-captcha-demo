@@ -51,6 +51,13 @@
           img.alt = 'Captcha Image';
           captchaContainer.appendChild(img);
           hash = json.hash;
+          // Inform user about the captcha difficulty:
+          let difficultyMessage1 = document.createElement('p');
+          difficultyMessage1.textContent = 'Captcha difficulty: ' + (json.difficulty || 'Unknown') + ' %.';
+          captchaContainer.appendChild(difficultyMessage1);
+          let difficultyMessage2 = document.createElement('p');
+          difficultyMessage2.textContent = 'Request a new captcha if it is too difficult. One minute to solve it.';
+          captchaContainer.appendChild(difficultyMessage2);
         })
         .catch(error => {
           let captchaContainer = document.getElementById('captchaContainer');

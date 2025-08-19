@@ -259,9 +259,7 @@ public class Main {
                     exchange, new String(templateStream.readAllBytes(), StandardCharsets.UTF_8));
                 return false;
               } catch (IOException e) {
-                LOGGER.error("Failed to send demo page: {}", e.getMessage());
-                MyHttpServer.send403(exchange, "Failed to load demo page.");
-                return false;
+                throw new UncheckedIOException("Failed to read demo template.", e);
               }
             }));
   }

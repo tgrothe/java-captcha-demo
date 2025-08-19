@@ -1,75 +1,72 @@
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.function.Function;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MyHttpServer {
+  /**
+   * This class provides a path and a handle function for HTTP requests. The handle function is a
+   * lambda that takes an HttpExchange object and returns a boolean. Each handle function is
+   * expected to return true if the next handler should be called, or false if the request has been
+   * fully handled.
+   */
+  public record MyHttpHandler(String path, Function<HttpExchange, Boolean> handler) {}
+
   private static final Logger LOGGER = LoggerFactory.getLogger(MyHttpServer.class);
-  private final HttpServer server;
-  private HttpHandler preHandler;
 
-  public MyHttpServer() {
-    HttpServer server = null;
-    try {
-      server = HttpServer.create(new InetSocketAddress(80), 0);
-      LOGGER.info("MyHttpServer initialized.");
-    } catch (IOException e) {
-      LOGGER.error("Failed to create HTTP server on port 80: {}", e.getMessage());
-    }
-    this.server = server;
-  }
-
-  public MyHttpServer addPreHandler(HttpHandler handler) {
-    preHandler = handler;
-    LOGGER.info("Pre-handler added.");
-    return this;
-  }
-
-  public MyHttpServer addHandler(String path, HttpHandler handler) {
+  public static void start(MyHttpHandler preHandler, MyHttpHandler... handlers) throws IOException {
     if (preHandler == null) {
-      throw new IllegalArgumentException(
-          "Pre-handler must be set before adding a handler for path: " + path);
+      throw new IllegalArgumentException("Pre-handler cannot be null.");
     }
-    server.createContext(
-        path,
-        exchange -> {
-          LOGGER.info(
-              "Received request form client: {} for URL: {}",
-              getClientIpAddress(exchange),
-              exchange.getRequestURI());
-          try {
-            synchronized (Main.LOCK) {
-              preHandler.handle(exchange);
-              if (exchange.getResponseCode() == -1) {
-                handler.handle(exchange);
+    if (handlers == null || handlers.length == 0) {
+      throw new IllegalArgumentException("At least one handler must be provided.");
+    }
+    HttpServer server = HttpServer.create(new InetSocketAddress(80), 0);
+    LOGGER.info("MyHttpServer initialized.");
+    for (MyHttpHandler handler : handlers) {
+      if (handler == null || handler.path() == null || handler.path().isEmpty()) {
+        throw new IllegalArgumentException("Handler path cannot be null or empty.");
+      }
+      server.createContext(
+          handler.path(),
+          exchange -> {
+            LOGGER.info(
+                "Received request from client: {} for URL: {}",
+                getClientIpAddress(exchange),
+                exchange.getRequestURI());
+            try {
+              synchronized (Main.LOCK) {
+                if (preHandler.handler.apply(exchange) && handler.handler.apply(exchange)) {
+                  LOGGER.error(
+                      "Request from client: {} for URL: {} was not properly handled, sending 403.",
+                      getClientIpAddress(exchange),
+                      exchange.getRequestURI());
+                  send403(exchange, "An unexpected error occurred while processing your request.");
+                  exchange.close();
+                }
               }
+            } catch (Exception e) {
+              LOGGER.warn("Exception in handler for path {}: {}", handler.path(), e.getMessage());
+              send403(exchange, "An error occurred while processing your request.");
+              exchange.close();
             }
-            if (exchange.getResponseCode() == -1) {
-              throw new IOException("No response set by pre-handler or handler.");
-            }
-          } catch (Exception e) {
-            LOGGER.warn("Exception handling request: {}", e.getMessage());
-            send403(exchange, "An error occurred while processing your request.");
-          }
-          LOGGER.info(
-              "Request processing completed for client: {} with status code: {}",
-              getClientIpAddress(exchange),
-              exchange.getResponseCode());
-        });
-    LOGGER.info("Handler added for path: {}", path);
-    return this;
-  }
-
-  public void start() {
+            LOGGER.info(
+                "Request processing completed for client: {} with status code: {}",
+                getClientIpAddress(exchange),
+                exchange.getResponseCode());
+          });
+      LOGGER.info("Handler added for path: {}", handler.path());
+    }
     server.setExecutor(null); // creates a default executor
     server.start();
     LOGGER.info("Server started on port 80.");
@@ -94,44 +91,58 @@ public class MyHttpServer {
     return URLDecoder.decode(parts[index], StandardCharsets.UTF_8);
   }
 
-  public static void sendHtml200(HttpExchange exchange, String responseBody) throws IOException {
-    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
-    exchange.sendResponseHeaders(200, responseBody.length());
-    try (OutputStream os = exchange.getResponseBody()) {
-      os.write(responseBody.getBytes(StandardCharsets.UTF_8));
-    }
-  }
-
-  public static void send200(HttpExchange exchange, Map<String, Object> optionalResponseData)
-      throws IOException {
-    JSONObject response = new JSONObject();
-    response.put("ok", true);
-    if (optionalResponseData != null) {
-      for (Map.Entry<String, Object> entry : optionalResponseData.entrySet()) {
-        response.put(entry.getKey(), entry.getValue());
+  public static void sendHtml200(HttpExchange exchange, String responseBody) {
+    try {
+      exchange.getResponseHeaders().add("Content-Type", "text/html; charset=UTF-8");
+      exchange.sendResponseHeaders(200, responseBody.length());
+      try (OutputStream os = exchange.getResponseBody()) {
+        os.write(responseBody.getBytes(StandardCharsets.UTF_8));
       }
-    }
-    String responseBody = response.toString();
-    exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
-    exchange.sendResponseHeaders(200, responseBody.length());
-    try (OutputStream os = exchange.getResponseBody()) {
-      os.write(responseBody.getBytes(StandardCharsets.UTF_8));
+    } catch (IOException e) {
+      LOGGER.error("Failed to send HTML 200 response: {}", e.getMessage());
+      throw new UncheckedIOException(e);
     }
   }
 
-  public static void send403(HttpExchange exchange, String optionalMessage) throws IOException {
-    JSONObject response = new JSONObject();
-    response.put("ok", false);
-    response.put(
-        "message",
-        optionalMessage != null
-            ? optionalMessage
-            : "Access denied. Please wait 10 seconds before trying again.");
-    String responseBody = response.toString();
-    exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
-    exchange.sendResponseHeaders(403, responseBody.length());
-    try (OutputStream os = exchange.getResponseBody()) {
-      os.write(responseBody.getBytes(StandardCharsets.UTF_8));
+  public static void send200(HttpExchange exchange, Map<String, Object> optionalResponseData) {
+    try {
+      JSONObject response = new JSONObject();
+      response.put("ok", true);
+      if (optionalResponseData != null) {
+        for (Map.Entry<String, Object> entry : optionalResponseData.entrySet()) {
+          response.put(entry.getKey(), entry.getValue());
+        }
+      }
+      String responseBody = response.toString();
+      exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
+      exchange.sendResponseHeaders(200, responseBody.length());
+      try (OutputStream os = exchange.getResponseBody()) {
+        os.write(responseBody.getBytes(StandardCharsets.UTF_8));
+      }
+    } catch (IOException e) {
+      LOGGER.error("Failed to send 200 response: {}", e.getMessage());
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public static void send403(HttpExchange exchange, String optionalMessage) {
+    try {
+      JSONObject response = new JSONObject();
+      response.put("ok", false);
+      response.put(
+          "message",
+          optionalMessage != null
+              ? optionalMessage
+              : "Access denied. Please wait 10 seconds before trying again.");
+      String responseBody = response.toString();
+      exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
+      exchange.sendResponseHeaders(403, responseBody.length());
+      try (OutputStream os = exchange.getResponseBody()) {
+        os.write(responseBody.getBytes(StandardCharsets.UTF_8));
+      }
+    } catch (IOException e) {
+      LOGGER.error("Failed to send 403 response: {}", e.getMessage());
+      throw new UncheckedIOException(e);
     }
   }
 }

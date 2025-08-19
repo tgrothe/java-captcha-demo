@@ -176,18 +176,20 @@ public class Main {
             0,
             CAPTCHA_TIMEOUT);
 
-    new MyHttpServer()
-        .addPreHandler(
+    MyHttpServer.start(
+        new MyHttpServer.MyHttpHandler(
+            "",
             exchange -> {
               String clientIp = MyHttpServer.getClientIpAddress(exchange);
               User user = USER_MAP.computeIfAbsent(clientIp, k -> new User());
               if (user.hasAccessedRecently()) {
                 MyHttpServer.send403(exchange, null);
-                return;
+                return false;
               }
               user.updateAccessTime();
-            })
-        .addHandler(
+              return true;
+            }),
+        new MyHttpServer.MyHttpHandler(
             "/captcha/get",
             exchange -> {
               String clientIp = MyHttpServer.getClientIpAddress(exchange);
@@ -213,8 +215,9 @@ public class Main {
               user.setCaptchaHash(hash);
               MyHttpServer.send200(
                   exchange, Map.of("image", base64Image, "hash", hash, "difficulty", difficulty));
-            })
-        .addHandler(
+              return false;
+            }),
+        new MyHttpServer.MyHttpHandler(
             "/captcha/check",
             exchange -> {
               int hash =
@@ -225,16 +228,16 @@ public class Main {
                   "Checking captcha with hash: {}, code: {}, client IP: {}", hash, code, clientIp);
               if (!CAPTCHA_MAP.containsKey(hash)) {
                 MyHttpServer.send403(exchange, "Captcha hash not found or expired.");
-                return;
+                return false;
               }
               if (USER_MAP.get(clientIp).getCaptchaHash() != hash) {
                 MyHttpServer.send403(
                     exchange, "Captcha hash does not match the user's last captcha.");
-                return;
+                return false;
               }
               if (!CAPTCHA_MAP.get(hash).equals(code)) {
                 MyHttpServer.send403(exchange, "Captcha code is incorrect.");
-                return;
+                return false;
               }
               LOGGER.info(
                   "Captcha with hash: {} and code: {} is correct for client IP: {}",
@@ -244,8 +247,9 @@ public class Main {
               MyHttpServer.send200(
                   exchange,
                   Map.of("message", "Captcha is correct.", "secret_message", MY_SECRET_MESSAGE));
-            })
-        .addHandler(
+              return false;
+            }),
+        new MyHttpServer.MyHttpHandler(
             "/captcha/demo",
             exchange -> {
               try (InputStream templateStream =
@@ -253,9 +257,11 @@ public class Main {
                 assert templateStream != null;
                 MyHttpServer.sendHtml200(
                     exchange, new String(templateStream.readAllBytes(), StandardCharsets.UTF_8));
+                return false;
+              } catch (IOException e) {
+                throw new UncheckedIOException("Failed to read demo template.", e);
               }
-            })
-        .start();
+            }));
   }
 
   private static void clearExpiredCaptchas() {

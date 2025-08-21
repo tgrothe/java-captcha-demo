@@ -1,4 +1,5 @@
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -16,15 +17,18 @@ import org.slf4j.LoggerFactory;
 public class MyHttpServer {
   /**
    * This class provides a path and a handle function for HTTP requests. The handle function is a
-   * lambda that takes an HttpExchange object and returns a boolean. Each handle function is
-   * expected to return true if the next handler should be called, or false if the request has been
-   * fully handled.
+   * lambda that takes an HttpExchange object and returns a boolean. The handle function is expected
+   * to return true if the request should be processed by the associated HttpHandler, false
+   * otherwise.
    */
-  public record MyHttpHandler(String path, Function<HttpExchange, Boolean> handler) {}
+  public record MyPreHttpHandler(Function<HttpExchange, Boolean> handler) {}
+
+  public record MyHttpHandler(String path, HttpHandler handler) {}
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MyHttpServer.class);
 
-  public static void start(MyHttpHandler preHandler, MyHttpHandler... handlers) throws IOException {
+  public static void start(MyPreHttpHandler preHandler, MyHttpHandler... handlers)
+      throws IOException {
     if (preHandler == null) {
       throw new IllegalArgumentException("Pre-handler cannot be null.");
     }
@@ -34,7 +38,7 @@ public class MyHttpServer {
     HttpServer server = HttpServer.create(new InetSocketAddress(80), 0);
     LOGGER.info("MyHttpServer initialized.");
     for (MyHttpHandler handler : handlers) {
-      if (handler == null || handler.path() == null || handler.path().isEmpty()) {
+      if (handler == null || handler.path() == null || handler.path().isBlank()) {
         throw new IllegalArgumentException("Handler path cannot be null or empty.");
       }
       server.createContext(
@@ -46,13 +50,8 @@ public class MyHttpServer {
                 exchange.getRequestURI());
             try {
               synchronized (Main.LOCK) {
-                if (preHandler.handler.apply(exchange) && handler.handler.apply(exchange)) {
-                  LOGGER.error(
-                      "Request from client: {} for URL: {} was not properly handled, sending 403.",
-                      getClientIpAddress(exchange),
-                      exchange.getRequestURI());
-                  send403(exchange, "An unexpected error occurred while processing your request.");
-                  exchange.close();
+                if (preHandler.handler.apply(exchange)) {
+                  handler.handler().handle(exchange);
                 }
               }
             } catch (Exception e) {

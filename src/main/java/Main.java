@@ -177,8 +177,7 @@ public class Main {
             CAPTCHA_TIMEOUT);
 
     MyHttpServer.start(
-        new MyHttpServer.MyHttpHandler(
-            "",
+        new MyHttpServer.MyPreHttpHandler(
             exchange -> {
               String clientIp = MyHttpServer.getClientIpAddress(exchange);
               User user = USER_MAP.computeIfAbsent(clientIp, k -> new User());
@@ -215,7 +214,6 @@ public class Main {
               user.setCaptchaHash(hash);
               MyHttpServer.send200(
                   exchange, Map.of("image", base64Image, "hash", hash, "difficulty", difficulty));
-              return false;
             }),
         new MyHttpServer.MyHttpHandler(
             "/captcha/check",
@@ -228,16 +226,16 @@ public class Main {
                   "Checking captcha with hash: {}, code: {}, client IP: {}", hash, code, clientIp);
               if (!CAPTCHA_MAP.containsKey(hash)) {
                 MyHttpServer.send403(exchange, "Captcha hash not found or expired.");
-                return false;
+                return;
               }
               if (USER_MAP.get(clientIp).getCaptchaHash() != hash) {
                 MyHttpServer.send403(
                     exchange, "Captcha hash does not match the user's last captcha.");
-                return false;
+                return;
               }
               if (!CAPTCHA_MAP.get(hash).equals(code)) {
                 MyHttpServer.send403(exchange, "Captcha code is incorrect.");
-                return false;
+                return;
               }
               LOGGER.info(
                   "Captcha with hash: {} and code: {} is correct for client IP: {}",
@@ -247,7 +245,6 @@ public class Main {
               MyHttpServer.send200(
                   exchange,
                   Map.of("message", "Captcha is correct.", "secret_message", MY_SECRET_MESSAGE));
-              return false;
             }),
         new MyHttpServer.MyHttpHandler(
             "/captcha/demo",
@@ -257,7 +254,6 @@ public class Main {
                 assert templateStream != null;
                 MyHttpServer.sendHtml200(
                     exchange, new String(templateStream.readAllBytes(), StandardCharsets.UTF_8));
-                return false;
               } catch (IOException e) {
                 throw new UncheckedIOException("Failed to read demo template.", e);
               }

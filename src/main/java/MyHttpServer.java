@@ -163,10 +163,6 @@ public class MyHttpServer {
     }
   }
 
-  public static void sendHtml200(HttpExchange exchange, String responseBody) {
-    sendCustomResponse(exchange, 200, ContentType.HTML, null, responseBody);
-  }
-
   public static void send200(HttpExchange exchange, Map<String, Object> optionalResponseData) {
     JSONObject response = new JSONObject();
     response.put("ok", true);

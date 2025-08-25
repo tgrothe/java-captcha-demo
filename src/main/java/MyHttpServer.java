@@ -45,7 +45,7 @@ public class MyHttpServer {
   private static final HashMap<String, String> templates = new HashMap<>();
 
   public static void start(MyPreHttpHandler preHandler, MyHttpHandler... handlers)
-          throws IOException {
+      throws IOException {
     if (handlers == null || handlers.length == 0) {
       throw new IllegalArgumentException("At least one handler must be provided.");
     }
@@ -57,41 +57,41 @@ public class MyHttpServer {
         throw new IllegalArgumentException("Handler path cannot be null or empty.");
       }
       server.createContext(
-              handler.path(),
-              exchange -> {
-                LOGGER.info(
-                        "Received request from client: {} for URL: {}",
-                        getClientIpAddress(exchange),
-                        exchange.getRequestURI());
-                try {
-                  synchronized (LOCK) {
-                    if (preHandler != null) {
-                      if (preHandler.preHandler().apply(exchange)) {
-                        handler.handler().handle(exchange);
-                      }
-                    } else {
-                      handler.handler().handle(exchange);
-                    }
+          handler.path(),
+          exchange -> {
+            LOGGER.info(
+                "Received request from client: {} for URL: {}",
+                getClientIpAddress(exchange),
+                exchange.getRequestURI());
+            try {
+              synchronized (LOCK) {
+                if (preHandler != null) {
+                  if (preHandler.preHandler().apply(exchange)) {
+                    handler.handler().handle(exchange);
                   }
-                  if (exchange.getResponseCode() == -1) {
-                    LOGGER.warn("No response sent for path: {}", handler.path());
-                    sendCustomResponse(
-                            exchange, 404, ContentType.TEXT, null, "Not found or access denied.");
-                  }
-                } catch (Exception e) {
-                  LOGGER.warn("Exception in handler for path {}", handler.path(), e);
-                  sendCustomResponse(
-                          exchange,
-                          404,
-                          ContentType.TEXT,
-                          null,
-                          "An error occurred while processing your request.");
+                } else {
+                  handler.handler().handle(exchange);
                 }
-                LOGGER.info(
-                        "Request processing completed for client: {} with status code: {}",
-                        getClientIpAddress(exchange),
-                        exchange.getResponseCode());
-              });
+              }
+              if (exchange.getResponseCode() == -1) {
+                LOGGER.warn("No response sent for path: {}", handler.path());
+                sendCustomResponse(
+                    exchange, 404, ContentType.TEXT, null, "Not found or access denied.");
+              }
+            } catch (Exception e) {
+              LOGGER.warn("Exception in handler for path {}", handler.path(), e);
+              sendCustomResponse(
+                  exchange,
+                  404,
+                  ContentType.TEXT,
+                  null,
+                  "An error occurred while processing your request.");
+            }
+            LOGGER.info(
+                "Request processing completed for client: {} with status code: {}",
+                getClientIpAddress(exchange),
+                exchange.getResponseCode());
+          });
       LOGGER.info("Handler added for path: {}", handler.path());
     }
     server.setExecutor(null); // creates a default executor
@@ -129,29 +129,29 @@ public class MyHttpServer {
       }
     }
     return StringSubstitutor.replace(
-            templates.get(path),
-            IntStream.range(0, args.length)
-                    .boxed()
-                    .collect(
-                            Collectors.toMap(
-                                    i -> "" + i, // key is the index as a string
-                                    i -> args[i] // value is the corresponding argument
-                            )),
-            "{{",
-            "}}");
+        templates.get(path),
+        IntStream.range(0, args.length)
+            .boxed()
+            .collect(
+                Collectors.toMap(
+                    i -> "" + i, // key is the index as a string
+                    i -> args[i] // value is the corresponding argument
+                    )),
+        "{{",
+        "}}");
   }
 
   public static void sendCustomResponse(
-          HttpExchange exchange,
-          int statusCode,
-          ContentType contentType,
-          String templatePath,
-          String... templateValues) {
+      HttpExchange exchange,
+      int statusCode,
+      ContentType contentType,
+      String templatePath,
+      String... templateValues) {
     try {
       String responseBody =
-              contentType == ContentType.HTML && templatePath != null
-                      ? getTemplate(templatePath, templateValues)
-                      : String.join("\n", templateValues);
+          contentType == ContentType.HTML && templatePath != null
+              ? getTemplate(templatePath, templateValues)
+              : String.join("\n", templateValues);
       byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
       exchange.getResponseHeaders().add("Content-Type", contentType + "; charset=utf-8");
       exchange.sendResponseHeaders(statusCode, bytes.length);
@@ -183,10 +183,10 @@ public class MyHttpServer {
     JSONObject response = new JSONObject();
     response.put("ok", false);
     response.put(
-            "message",
-            optionalMessage != null
-                    ? optionalMessage
-                    : "Access denied. Please wait 10 seconds before trying again.");
+        "message",
+        optionalMessage != null
+            ? optionalMessage
+            : "Access denied. Please wait 10 seconds before trying again.");
     String responseBody = response.toString();
     sendCustomResponse(exchange, 403, ContentType.JSON, null, responseBody);
   }

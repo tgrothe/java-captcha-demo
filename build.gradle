@@ -17,9 +17,10 @@ repositories {
 }
 
 dependencies {
+    implementation 'org.slf4j:slf4j-simple:2.0.17'
+    implementation 'org.apache.commons:commons-text:1.14.0'
     implementation 'org.json:json:20250517'
     implementation 'net.logicsquad:nanocaptcha:2.1'
-    implementation 'org.slf4j:slf4j-simple:2.0.17'
 }
 
 java {

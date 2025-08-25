@@ -3,9 +3,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -248,16 +246,9 @@ public class Main {
             }),
         new MyHttpServer.MyHttpHandler(
             "/captcha/demo",
-            exchange -> {
-              try (InputStream templateStream =
-                  Main.class.getResourceAsStream("templates/demo.html")) {
-                assert templateStream != null;
-                MyHttpServer.sendHtml200(
-                    exchange, new String(templateStream.readAllBytes(), StandardCharsets.UTF_8));
-              } catch (IOException e) {
-                throw new UncheckedIOException("Failed to read demo template.", e);
-              }
-            }));
+            exchange ->
+                MyHttpServer.sendCustomResponse(
+                    exchange, 200, MyHttpServer.ContentType.HTML, "templates/demo.html")));
   }
 
   private static void clearExpiredCaptchas() {

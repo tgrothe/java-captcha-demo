@@ -119,7 +119,7 @@ public class MyHttpServer {
   }
 
   private static String getTemplate(String path, String... args) throws IOException {
-    if (path == null || path.isBlank() || args == null || args.length == 0) {
+    if (path == null || path.isBlank() || args == null) {
       throw new IllegalArgumentException("Path and args cannot be null or empty.");
     }
     if (!templates.containsKey(path)) {
@@ -149,7 +149,7 @@ public class MyHttpServer {
       String... templateValues) {
     try {
       String responseBody =
-          contentType == ContentType.HTML && templatePath != null
+          templatePath != null
               ? getTemplate(templatePath, templateValues)
               : String.join("\n", templateValues);
       byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);

@@ -65,11 +65,7 @@ public class MyHttpServer {
                 exchange.getRequestURI());
             try {
               synchronized (LOCK) {
-                if (preHandler != null) {
-                  if (preHandler.preHandler().apply(exchange)) {
-                    handler.handler().handle(exchange);
-                  }
-                } else {
+                if (preHandler == null || preHandler.preHandler().apply(exchange)) {
                   handler.handler().handle(exchange);
                 }
               }
